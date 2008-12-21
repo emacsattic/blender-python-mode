@@ -28,37 +28,11 @@
 ;;; Boston, MA 02110-1301, USA.
 ;;; 
 ;;; --------------------------------------------------------
-;;; 
-;;; Note: 
-;;; 
-;;;   - blender-python-mode needs ~/fg/sys/bin/blash-emacs,
-;;;     a wrapper for blash which ignores the '-i'
-;;;     option appended to the blash command line
-;;;     by the python-mode function 'run-python'
-;;;   
-;;;   - the 'emacs.py' module has to be on the Blender python path
-;;;     see '~/fg/sys/bin/blender-python-paths'
-;;;   
-;;;       | # dir of 'emacs.py' (needed by emacs python.el python-mode)
-;;;       | #
-;;;       | # figure out where to find emacs.py
-;;;       | # - needed by emacs python.el python-mode
-;;;       | # - emacs.py is located in the emacs 'data-directory'
-;;;       | if [ -z "$EMACS_DATE_DIRECTORY" ]; then
-;;;       |   EMACS_DATE_DIRECTORY=$(emacs --batch --no-site-file --eval '(print data-directory)')
-;;;       |   EMACS_DATE_DIRECTORY=$(echo ${emacs_data_directory} | sed 's|^"*||; s|["/]*$||')
-;;;       |   export EMACS_DATE_DIRECTORY
-;;;       | fi
-;;;       | PYTHONPATH=${PYTHONPATH}:${EMACS_DATE_DIRECTORY}
-;;; 
-;;; --------------------------------------------------------
-;;; todo: copyright, installation, ...
-;;; see /usr/share/emacs/site-lisp/python-mode/python-mode.el
-;;; --------------------------------------------------------
 
 (require 'cl)
 (require 'python)
 (require 'comint)
+(require 'bpm-utilities)
 (require 'bpm-shell-command)
 (require 'blender-urls)
 (require 'blender-variants)
@@ -79,13 +53,6 @@ determines the amount of debug messages printed by the Blender
 server."
   :type  'integer
   :group 'blender)
-
-;; The blender command to use is determined in file `blender-variants.el'
-;;| 
-;;| (defcustom blender:blender-command "blender"
-;;|   "*Command used to start the Blender Server."
-;;|   :type  'string
-;;|   :group 'blender)
 
 (defcustom blender-ip-address "127.0.0.1"
   "*IP-address of the Blender server."
@@ -118,17 +85,6 @@ server."
   "*Output buffer of the Blender Server."
   :type  'string
   :group 'blender)
-
-;; The blender command to use is determined in file `blender-variants.el'
-;;| 
-;;| (defcustom blender:blash-command "blash"
-;;|   "*Shell command used to start Python interpreter.
-;;| Note:  'blash-emacs' is a wrapper which ignores the '-i' option
-;;| appended by python-mode as '-i' has a different meaning for blash:
-;;| '-i' is the same as '--IP-address' and has the IP address of Blender
-;;| server as argument."
-;;|   :type  'string
-;;|   :group 'blender)
 
 (defcustom blash-debug-level 0
   "*The Blash debug level. The value of this variable determines
@@ -467,12 +423,7 @@ and finally return the new toolbar."
 Like `python-mode', but sets up parameters for Blender python subprocesses.
 Runs `blender-python-mode-hook' after `python-mode-hook'."
   :group 'python
-  ;;; the following doesn't work as the command is always different
-  ;;; (always connecting to a new port)
-  ;;; (set (make-local-variable 'python-command) blender:blash-command)
   (make-local-variable 'python-command)
-  ;;| (set (make-local-variable 'comint-prompt-regexp)
-  ;;|      "\\(>[>.]\\{2\\} \\|>>>.*version [0-9]+\\.\\)")
   ;; scroll no/all windows showing python buffer.
   ;; neither of the following does anything :(
   (set (make-local-variable 'comint-scroll-to-bottom-on-input)  nil) ;; 'all)
@@ -493,24 +444,6 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
   ;; menu
   (blender:make-blender-menu))
   
-;;| (defun blender-python-mode ()
-;;|   ""
-;;|   (interactive)
-;;|   (python-mode)
-;;|   (make-local-variable 'py-python-command)
-;;|   (make-local-variable 'py-python-command-args)
-;;|   (make-local-variable 'py-which-shell)
-;;|   (make-local-variable 'py-which-args)
-;;|   (make-local-variable 'py-which-bufname)
-;;|   (make-local-variable 'python-mode-map)
-;;|   (setq py-python-command blender:blash-command)
-;;|   (setq py-python-command-args blender:blash-command-args)
-;;|   (setq py-which-shell blender:blash-command)
-;;|   (setq py-which-args blender:blash-command-args)
-;;|   (setq py-which-bufname "Blender")
-;;|   (setq mode-name "Blender")
-;;|   (blender:make-blender-menu))
-
 ;; =========================================================
 ;; key bindings:
 
@@ -562,7 +495,7 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
           ;; store the process name in the global variable `blender-process-name'
           (setq blender-process-name process-name)
           
-          (message "Started Blender Server..."))))))
+          (bpm:message "Started the Blender Server..."))))))
 
 ;;; Append a blender profile to the argument list:
 ;;; (blender:set-blender-profile "3x3+1 Perspective and Button Window")
@@ -593,15 +526,19 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
 ;; ---------------------------------------------------------
 
 (defun blender (&rest args)
-  "Execute the Blender command `blender:blender-command' with arguments `args'.
+  "Execute the Blender server command with arguments `args'.
 Stdout and stderr are printed to the `blender-output-buffer' buffer.
-The name of the blender process is stored in the global variable `'."
+The name of the blender process is returned."
 
-  (let* ((command       blender:blender-command)
+  (let* ((command       (blender:get-blender-command))
          (output-buffer blender-output-buffer))
 
     ;; DEBUG:
-    (message (format "[blender server] %s %S (output buffer: %s)" command args output-buffer))
+    (let ((command-string command))
+      ;; append parameters
+      (loop for arg in args do (setq command-string (concat command-string " " arg)))
+      ;; print a message
+      (bpm:message "Starting the Blender Server: %s (output buffer: %s)" command-string output-buffer))
 
     ;; start blender
     (let ((process-name 
@@ -687,8 +624,8 @@ socket is still used by some client."
   (if (blender-server-running)
       (progn
         (delete-process blender-process-name)
-        (message "Stopped the Blender Server..."))
-    (message "Blender Server not running...")))
+        (bpm:message "Stopped the Blender Server..."))
+    (bpm:message "Blender Server not running...")))
 
 ;; (start-blender-server)
 ;; (blender-server-process-status)
@@ -811,7 +748,7 @@ todo:
   (blash:restart-blash-client)
   
   ;; done :)
-  (message "Restarted the Blender Server..."))
+  (bpm:message "Restarted the Blender Server..."))
 
 ;; (if (equal (blender-server-process-status) 'running) t nil)
 
@@ -830,7 +767,7 @@ todo:
 
   ;; print an error if blender server is already running
   (if (blender-server-running)
-      (message "Blender is already running...")
+      (bpm:message "Blender is already running...")
 
     ;; start blender server
     (save-excursion ;; with and without the blender server buffer is shown :(
@@ -852,7 +789,7 @@ todo:
     (blash:restart-blash-client)
 
   ;; done :)
-  (message "Started blash and blender server...")))
+  (bpm:message "Started blash and blender server...")))
 
 ;; (blender:start)
 ;; (blender:stop)
@@ -868,7 +805,7 @@ todo:
   (blender:restart-blender-server)
 
   ;; done :)
-  (message "Restarted blash and blender server..."))
+  (bpm:message "Restarted blash and blender server..."))
 
 ;; (blender:start)
 ;; (blender:restart)
@@ -886,7 +823,7 @@ todo:
   (stop-blender-server)
 
   ;; done :)
-  (message "Stopped blash client and blender server..."))
+  (bpm:message "Stopped blash client and blender server..."))
 
 ;; (blender:start)
 ;; (blender:stop)
@@ -905,13 +842,13 @@ todo:
          (port       (or port (get-blender-server-port))))
 
     ;; start blash and connect to blender server
-    (message "[blash] Connecting to Blender server...   (IP-address: %s, port: %i)" ip-address port)
+    (bpm:message "Connecting to Blender server...   (IP-address: %s, port: %i)" ip-address port)
     (run-blash :debug           blash-debug-level
                :ip-address      ip-address
                :port            port
                :retries         blash-retries
                :retry-sleeptime blash-retry-sleeptime
-               :noshow          t                        ;; don't pop to blash window - doing this when evaluating / executing some code...
+               :noshow          t ;; don't pop to blash window - doing this when evaluating / executing some code...
                )))
 
 ;; blender --debug bcp:2 --geometry 1200x800+0+100 --bcp 7784
@@ -931,17 +868,19 @@ todo:
 (defun* run-blash (&key debug ip-address port retries retry-sleeptime noshow new)
   "Variation of `run-python' in python.el.
 
+TODO - rewrite the following:
+
 Run an inferior Blash process, input and output via buffer *blash*.
 CMD is the Blash command to run.  NOSHOW non-nil means don't show the
 buffer automatically.
 
-Normally, if there is a process already running in `python-buffer',
-switch to that buffer.  Interactively, a prefix arg allows you to edit
-the initial command line (default is `blender:blash-command'); `-i' etc. args
-will be added to this as appropriate.  A new process is started if:
-one isn't running attached to `python-buffer', or interactively the
-default `blender:blash-command', or argument NEW is non-nil.  See also the
-documentation for `python-buffer'.
+Normally, if there is a process already running in
+`python-buffer', switch to that buffer.  Interactively, a prefix
+arg allows you to edit the initial command line; `-i' etc. args
+will be added to this as appropriate.  A new process is started
+if: one isn't running attached to `python-buffer', or
+interactively the default blash command, or argument
+NEW is non-nil.  See also the documentation for `python-buffer'.
 
 Runs the hook `inferior-blash-mode-hook' \(after the
 `comint-mode-hook' is run).  \(Type \\[describe-mode] in the process
@@ -950,7 +889,7 @@ buffer for a list of commands.)"
   (when (or new (not (blash-running)))
     (with-current-buffer
         (let* ((cmd (append
-                     (list blender:blash-command)
+                     (list (blender:get-blash-command))
                      (if debug           (list (concat "--debug="  (number-to-string debug))))
                      (if ip-address      (list "--IP-address"                        ip-address))
                      (if port            (list "--port"            (number-to-string port)))
@@ -970,8 +909,8 @@ buffer for a list of commands.)"
                      (let* ((dir blender-python-init-file-dir)
                             (cmd blender-python-init-cmd))
                        (list "--init" cmd)))))
-          (message "Starting Blash - connecting to Blender server at host %S, port %i\n" ip-address port)
-          ;;| (message "[DEBUG blender-python-mode] Starting blash with command: %S" cmd)
+          (bpm:message "Starting Blash - connecting to Blender server at host %S, port %i\n" ip-address port)
+          ;;| (bpm:message "[DEBUG blender-python-mode] Starting blash with command: %S" cmd)
           (apply 'make-comint-in-buffer "*Blash Client*"
                  (if new (generate-new-buffer "*Blash*") "*Blash*")
                  (car cmd) nil (cdr cmd)))
@@ -1056,8 +995,8 @@ The Blash process is the process associated to the `*Blender*' buffer."
   (if (blash-running)
       (let ((blash-process (get-buffer-process python-buffer)))
         (delete-process blash-process)
-        (message "Stopped the blash client..."))
-    (message "Blash not running...")))
+        (bpm:message "Stopped the blash client..."))
+    (bpm:message "Blash not running...")))
 
 ;;| (blash)
 ;;| (blash-process-status)
@@ -1108,7 +1047,7 @@ The Blash process is the process associated to the `*Blender*' buffer."
             ;; both markers found
             (cons begin end)
           ;; couldn't find region
-          (message "Couldn't find a region limited by `%s' and `%s' in the current buffer."
+          (bpm:message "Couldn't find a region limited by `%s' and `%s' in the current buffer."
                    begin-marker end-marker))))))
 
 ;; example:
@@ -1151,7 +1090,7 @@ which also recenters the python buffer."
     (when region
         (let ((begin  (car region))
               (end    (cdr region)))
-          ;; (message "; region (%d,%d): %s" begin end (buffer-substring begin end))
+          ;; (bpm:message "; region (%d,%d): %s" begin end (buffer-substring begin end))
           (blender-send-region begin end)))))
   
 ;; ---------------------------------------------------------
@@ -1166,7 +1105,7 @@ functions later in the file."
     (when region
         (let ((begin  (car region))
               (end    (cdr region)))
-          ;; (message "; region (%d,%d): %s" begin end (buffer-substring begin end))
+          ;; (bpm:message "; region (%d,%d): %s" begin end (buffer-substring begin end))
           (blender-send-region begin end)))))
 
 ;; ---------------------------------------------------------
@@ -1313,7 +1252,7 @@ If a port is given, use it to connect to the server."
 ;;|        (restored (progn
 ;;|                    (blender-set-process-mark orig)
 ;;|                    (blender-get-process-mark))))
-;;|   (message ">>> %d -> %d -> %d." orig new restored))
+;;|   (bpm:message ">>> %d -> %d -> %d." orig new restored))
   
 ;; ---------------------------------------------------------
 
@@ -1372,38 +1311,6 @@ If a port is given, use it to connect to the server."
 ;;| 
 ;;| (let comint-output-filter (process string)
 ;;| (let comint-output-filter (process string)
-
-;; =========================================================
-;; commands to connect to a blender server started by some 
-;; other command - for example the lisp fomgames system :)
-;; 
-;; todo:
-;; 
-;; probably most of them currently do not work...
-;; ...make them work when needed...
-;; 
-;; ---------------------------------------------------------
-
-(defun formgames:get-blender-server-port ()
-  "Read the file where the Blender server stores its port number
-and return the value found."
-  (let ((port (shell-command-to-string (concat blender:blender-command " port"))))
-    (string-to-number port)))
-
-;; ---------------------------------------------------------
-
-(defun formgames:blender-server-process-status ()
-  "Returns a symbol representing the status of Blender server:
-- `running'       the Blender server is running;
-- `not-running'   the blender server is not running."
-
-  (let ((status (shell-command-to-string (concat blender:blender-command " status"))))
-    (cond ((string-match "not +running" status) 'not-running)
-          ((string-match "running"      status) 'running)
-          (t (error (format "Unknown Blender server status message: %s" status))))))
-
-;; (formgames:blender-server-process-status)
-;; (if (equal (formgames:blender-server-process-status) 'running) t nil)
 
 ;;; ========================================================
 ;;; blash window related functions
@@ -1527,7 +1434,7 @@ Example:
          ;; - a negative number means the size of the lowermost window.
          (height3 (- height3)))
     ;; DEBUG
-    (message ">>> window height: %s, height: %s, height2: %s, height3: %s."
+    (bpm:message ">>> window height: %s, height: %s, height2: %s, height3: %s."
              window-height height height2 height3)
     (split-window-vertically height3)))
 

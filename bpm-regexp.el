@@ -35,6 +35,7 @@
 
 (require 'cl)    ;; common lisp `&key' arguments only supported with `defun*'...
 (require 'dired) ;; using `dired-string-replace-match'
+(require 'bpm-utilities)
 
 ;;; ========================================================
 ;;; functions

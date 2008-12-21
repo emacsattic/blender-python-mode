@@ -30,6 +30,7 @@
 ;;; --------------------------------------------------------
 
 (require 'cl)
+(require 'bpm-utilities)
 
 ;;; ========================================================
 ;;; Variables
@@ -75,6 +76,22 @@
 ;;; (customize-variable 'blender:blender-variants)
 ;;; for customize :type examples try: grep-emacs-sources :type | g list
 
+;;| ;; for testing purpose:
+;;| (setq blender:blender-variants
+;;|   '(("Blender Variant 1" ;; name
+;;|      ""   ;; empty bin-dir => use blender version found on the path
+;;|      t    ;; blash defined
+;;|      t    ;; --geometry option defined
+;;|      t    ;; --command-port (t) vs. --bcp (nil) option
+;;|      t)   ;; --debug (t) vs. --debug-command-port (nil) option
+;;|     ("Blender Variant 2" ;; name
+;;|      "path/blender/variant/2" ;; bin-dir
+;;|      nil  ;; blash defined
+;;|      nil  ;; --geometry option defined
+;;|      nil  ;; --command-port (t) vs. --bcp (nil) option
+;;|      nil) ;; --debug (t) vs. --debug-command-port (nil) option
+;;|     ))
+
 (defcustom blender:blender-variant-default (first (first blender:blender-variants)) ;; get name of first variant
   "*The default blender variant to use when starting up."
   ;;| :type '(radio
@@ -102,15 +119,6 @@
 ;;; setting it every time when reading the file
 (setq blender:blender-variant blender:blender-variant-default)
 
-(defvar blender:blender-command nil ;; dynamically set by `blender:set-blender-variant'
-  "*Command used to start the Blender Server.")
-
-(defvar blender:blash-command nil ;; dynamically set by `blender:set-blender-variant'
-  "*Command used to start the Blash Client.")
-
-(defvar blender:blender-variant-setting nil ;; dynamically set by `blender:set-blender-variant'
-  "*The settings of the currently active blender variant.")
-
 ;;; ========================================================
 ;;; Functions
 ;;; --------------------------------------------------------
@@ -129,109 +137,125 @@
 ;;; Getters
 ;;; --------------------------------------------------------
 
-(defun blender:get-blender-variant-settings (variant-name)
-  "Get the settings for the currently active blender variant."
+(defun blender:set-blender-variant (variant-name)
+  "Set the blender variant to use when starting the blender server."
+  (interactive) 
+  ;; setting the global blender variant variable
+  (setq blender:blender-variant variant-name))
 
-  (loop for variant in blender:blender-variants
-        when (string-equal variant-name (first variant)) return variant))
-
-;;; (blender:get-blender-variant-settings "Blender")
-;;; (blender:get-blender-variant-settings "Blender Command Port")
-;;; (blender:get-blender-variant-settings "Blender Formgames Python")
-;;; (blender:get-blender-variant-settings "Blender Geometry Option")
+;; (blender:set-blender-variant "Blender Variant 1")
 
 ;;; --------------------------------------------------------
 
-(defun blender:get-blender-variant-name ()
+(defun blender:get-blender-variant ()
   "Returns the name of the currently active blender variant."
-  (nth 0 blender:blender-variant-setting))
+  blender:blender-variant)
 
-;; (blender:get-blender-variant-name)
+;;;                                                      (blender:get-blender-variant)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:get-blender-variant))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:get-blender-variant))
+
+;;; --------------------------------------------------------
+
+(defun blender:get-blender-variant-settings ()
+  "Get the settings for the currently active blender variant."
+  
+  (let ((variant-name (blender:get-blender-variant)))
+
+    (loop for variant in blender:blender-variants
+          when (string-equal variant-name (first variant)) return variant)))
+
+;;; (let ((blender:blender-variant "Blender"))                  (blender:get-blender-variant-settings))
+;;; (let ((blender:blender-variant "Blender Variant 1"))     (blender:get-blender-variant-settings))
+;;; (let ((blender:blender-variant "Blender Formgames Python")) (blender:get-blender-variant-settings))
+;;; (let ((blender:blender-variant "Blender Geometry Option"))  (blender:get-blender-variant-settings))
 
 ;;; --------------------------------------------------------
 
 (defun blender:get-blender-variant-bin-dir ()
   "Returns the bin dir of the currently active blender variant."
-  (nth 1 blender:blender-variant-setting))
+  (let ((variant-settings (blender:get-blender-variant-settings)))
+    (nth 1 variant-settings)))
 
-;; (blender:get-blender-variant-bin-dir)
+;;;                                                      (blender:get-blender-variant-bin-dir)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:get-blender-variant-bin-dir))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:get-blender-variant-bin-dir))
 
 ;;; --------------------------------------------------------
 
 (defun blender:blender-variant-blash-implemented-p ()
-  "Returns true if the `--geometry' option is defined for the currently active blender variant."
-  (nth 2 blender:blender-variant-setting))
+  "Returns true if the currently active blender variant
+implements the command port and blash."
+  (let ((variant-settings (blender:get-blender-variant-settings)))
+    (nth 2 variant-settings)))
 
-;; (blender:blender-variant-blash-implemented-p)
+;;;                                                      (blender:blender-variant-blash-implemented-p)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:blender-variant-blash-implemented-p))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:blender-variant-blash-implemented-p))
 
 ;;; --------------------------------------------------------
 
 (defun blender:blender-variant-geometry-option-defined-p ()
   "Returns true if the `--geometry' option is defined for the currently active blender variant."
-  (nth 3 blender:blender-variant-setting))
+  (let* ((variant-settings (blender:get-blender-variant-settings)))
+    (nth 3 variant-settings)))
 
-;; (blender:blender-variant-geometry-option-defined-p)
+;;;                                                      (blender:blender-variant-geometry-option-defined-p)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:blender-variant-geometry-option-defined-p))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:blender-variant-geometry-option-defined-p))
 
 ;;; --------------------------------------------------------
 
 (defun blender:blender-variant-command-port-option-defined-p ()
   "Returns true if the `--command-port' option is defined for the currently active blender variant."
-  (nth 4 blender:blender-variant-setting))
+  (let* ((variant-settings (blender:get-blender-variant-settings)))
+    (nth 4 variant-settings)))
 
-;; (blender:blender-variant-command-port-option-defined-p)
+;;;                                                      (blender:blender-variant-command-port-option-defined-p)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:blender-variant-command-port-option-defined-p))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:blender-variant-command-port-option-defined-p))
 
 ;;; --------------------------------------------------------
 
 (defun blender:blender-variant-debug-option-defined-p ()
   "Returns true if the `--debug' option is defined for the currently active blender variant."
-  (nth 5 blender:blender-variant-setting))
+  (let* ((variant-settings (blender:get-blender-variant-settings)))
+    (nth 5 variant-settings)))
 
-;; (blender:blender-variant-debug-option-defined-p)
+;;;                                                      (blender:blender-variant-debug-option-defined-p)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:blender-variant-debug-option-defined-p))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:blender-variant-debug-option-defined-p))
 
 ;;; ========================================================
-;;; Functions
+;;; get paths to blender server and blash binaries
 ;;; --------------------------------------------------------
 
-(defun blender:set-blender-variant (variant-name)
-  "Search `blender:blender-variants' for the blender variant with name `variant-name'
-and set the corresponding values."
+(defun blender:get-blender-command ()
+  "Returns the path of the currently active blender variant command - 
+or simpley `blender' if no bin dir is defined for the current blender variant."
+  (let ((bin-dir (blender:get-blender-variant-bin-dir)))
+    (if (string-equal bin-dir "")
+        "blender"
+      (concat (expand-file-name bin-dir) "/blender"))))
 
-  (interactive)
+;;;                                                      (blender:get-blender-command)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:get-blender-command))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:get-blender-command))
 
-  ;; get name, bin dir and blurbs of blender variant `variant-name'
-  (let ((settings (blender:get-blender-variant-settings variant-name)))
-
-    ;; set the blender variant settings
-    (setq  blender:blender-variant-setting settings)
-
-    (let ((name    (blender:get-blender-variant-name))
-          (bin-dir (blender:get-blender-variant-bin-dir)))
-
-      ;; setting the global blender variant variable
-      (setq blender:blender-variant name)
-      
-      ;; set the blender command
-      (setq blender:blender-command
-            (if (string-equal bin-dir "")
-                "blender" 
-              (concat (expand-file-name bin-dir) "/blender")))
-      
-      ;; set the blash command
-      (setq blender:blash-command
-            (if (string-equal bin-dir "")
-                "blash" 
-              (concat (expand-file-name bin-dir) "/blash")))
-
-      ;; inform the user
-      (message "Using Blender variant `%s'  (cmd: %s)" name blender:blender-command))))
-
-;;; (blender:set-blender-variant "Blender Formgames Python")
- 
-;;; ========================================================
-;;; Setting the default variant
 ;;; --------------------------------------------------------
 
-(blender:set-blender-variant blender:blender-variant)
+(defun blender:get-blash-command ()
+  "Returns the path of the blash command which corresponds to
+the currently active blender variant - or simpley `blash' if no bin dir is
+  defined for the current blender variant."
+  (let ((bin-dir (blender:get-blender-variant-bin-dir)))
+    (if (string-equal bin-dir "")
+        "blash"
+      (concat (expand-file-name bin-dir) "/blash"))))
+
+;;;                                                      (blender:get-blash-command)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:get-blash-command))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:get-blash-command))
 
 ;;; ========================================================
 ;;; format the geometry option - 
@@ -266,22 +290,24 @@ Examples:
 
 (defun blender:format-geometry-option (geometry)
   "Format the geometry option depending on the currently active blender variant."
+
   ;; does the currently active blender variant understand the geometry option?
   (if (blender:blender-variant-geometry-option-defined-p)
-
+      
+      ;; it does
       (list "--geometry" geometry)
-
+    
+    ;; it does not
     (destructuring-bind (dimension-x dimension-y offset-x offset-y) 
-        (blender:parse-geometry geometry)
-
+          (blender:parse-geometry geometry)
+      
       (list "-p" offset-x offset-y dimension-x dimension-y))))
 
-;;; (blender:set-blender-variant "Blender Command Port")
-;;; (blender:format-geometry-option "1000x800+50+100")
-;;; => ("-p" "+50" "+100" "1000" "800")
-;;; (blender:set-blender-variant "Blender Geometry Option")
-;;; (blender:format-geometry-option "1000x800+50+100")
+;;;                                                      (blender:format-geometry-option "1000x800+50+100")
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:format-geometry-option "1000x800+50+100"))
 ;;; => ("--geometry" "1000x800+50+100")
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:format-geometry-option "1000x800+50+100"))
+;;; => ("-p" "+50" "+100" "1000" "800")
  
 ;;; ========================================================
 ;;; format the command-port option - 
@@ -296,11 +322,10 @@ Examples:
       (list "--command-port" (int-to-string port-number))
     (list "--bcp" (int-to-string port-number))))
 
-;;; (let ((blender:blender-variant-setting '(dummy dummy dummy dummy   t dummy))) (blender:format-command-port-option 9))
-;;; => ("--command-port" "9")
-;;; (let ((blender:blender-variant-setting '(dummy dummy dummy dummy nil dummy))) (blender:format-command-port-option 9))
-;;; => ("--bcp" "9")
- 
+;;;                                                      (blender:format-command-port-option 1)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:format-command-port-option 2))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:format-command-port-option 3))
+
 ;;; ========================================================
 ;;; format the debug option - 
 ;;; depending on the `--debug option' value of
@@ -314,11 +339,10 @@ Examples:
       (list "--debug" (format "bcp:%d" debug-level))
     (list "--debug-command-port" (int-to-string debug-level))))
 
-;;; (let ((blender:blender-variant-setting '(dummy dummy dummy dummy dummy   t))) (blender:format-debug-option 4))
-;;; => ("--debug" "bcp:4")
-;;; (let ((blender:blender-variant-setting '(dummy dummy dummy dummy dummy nil))) (blender:format-debug-option 4))
-;;; => ("--debug-command-port" "4")
- 
+;;;                                                      (blender:format-command-port-option 1)
+;;; (let ((blender:blender-variant "Blender Variant 1")) (blender:format-command-port-option 2))
+;;; (let ((blender:blender-variant "Blender Variant 2")) (blender:format-command-port-option 3))
+
 ;;; ========================================================
 
 (provide 'blender-variants)
