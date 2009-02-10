@@ -41,6 +41,8 @@
 (defcustom blender:blender-profiles 
   `(("Default" ;; name
      "")       ;; profile path - when no profile is given, Blender creates the default scene
+    ("1x1+1 Perspective and Button Window"
+     ,(concat blender-python-mode-installation-dir "/blender-profiles/blender-profile.1x1+1.perspective.button-window"))
     ("3x3+1 Perspective and Button Window"
      ,(concat blender-python-mode-installation-dir "/blender-profiles/blender-profile.3x3+1.perspective.button-window"))
     ("3x3+0 Perspective"
