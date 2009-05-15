@@ -129,7 +129,10 @@
   `("Blender Variants"
     ,@(loop for (name bin-dir blurbs) in blender:blender-variants
             collect `[,name (blender:set-blender-variant ,name)
-                            :style radio :selected (string-equal blender:blender-variant ,name)])))
+                            :style radio :selected (string-equal blender:blender-variant ,name)])
+    "---"
+    ["Customize the list of Blender variants"        (customize-variable 'blender:blender-variants) t]
+    ["Customize the default Blender variant"         (customize-variable 'blender:blender-variant-default) t]))
 
 ;;; (blender:format-blender-variants-submenu)
 

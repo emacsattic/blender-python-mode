@@ -112,7 +112,7 @@
 ;;; Setting the default profile
 ;;; --------------------------------------------------------
 
-;; setting it to the derault
+;; setting it to the default
 ;; every time when reading the file
 (blender:set-blender-profile blender:blender-profile-default)
 
@@ -212,7 +212,10 @@ default blender cube scene."
   `("Blender Profiles"
     ,@(loop for (name profile-path) in blender:blender-profiles
             collect `[,name (blender:set-blender-profile ,name)
-                            :style radio :selected (string-equal (blender:get-blender-profile) ,name)])))
+                            :style radio :selected (string-equal (blender:get-blender-profile) ,name)])
+    "---"
+    ["Customize the list of Blender profiles"        (customize-variable 'blender:blender-profiles) t]
+    ["Customize the default Blender profile"         (customize-variable 'blender:blender-profile-default) t]))
 
 ;; (blender:format-blender-profiles-submenu)
 
