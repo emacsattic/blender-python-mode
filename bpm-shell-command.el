@@ -67,8 +67,10 @@
 ;;|     proc-name))
 
 (defun* bpm-shell-command (command &key args output-buffer get-back-focus)
-  "Wie \`shell-command\', jedoch koennen beliebig viele Kommandos gleichzeitig
-gestartet werden..."
+  "Similar to the `shell-command' - but the command allows to run
+more than one process in the same time.
+
+The process name and the process buffer are returned."
   (let* ((shell-buf-name (if output-buffer
                              output-buffer
                          (concat "Bpm-Shell-Command" (blender-new-postfix))))
@@ -93,8 +95,8 @@ gestartet werden..."
            (set-process-filter proc 'bpm-shell-command-filter)
            (set-marker (process-mark proc) (point-max) shell-buf)))))
 
-    ;; return name of process
-    proc-name))
+    ;; return name of process and the process output buffer
+    (values proc-name shell-buf)))
 
 ;;| with and without getting back the focus to emacs
 ;;| 
