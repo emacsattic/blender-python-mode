@@ -35,7 +35,7 @@ __all__ = ["eexecfile", "eargs", "complete", "ehelp", "eimport", "modpath"]
 # _dict can always be changed via 'set_exec_dict(dict)'
 _main_dict = __main__.__dict__
 
-print "# >>> This is module 'emacs' :)"
+print "# module 'emacs'..."
 
 def set_main_dict(dict):
     """
