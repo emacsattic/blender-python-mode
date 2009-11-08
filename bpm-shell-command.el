@@ -83,7 +83,8 @@ The process name and the process buffer are returned."
 
     ;; An ugly hack to get the focus back to blender...
     ;; ... which probably only works for linux as os and gnome as window manager...
-    (d-restore-window-focus 
+    (d-restore-window-focus
+     0.3 ;; give the command some time to start up
 
      (save-window-excursion
        (set-buffer shell-buf)
@@ -122,7 +123,7 @@ The process name and the process buffer are returned."
 ;;; *** hack to get back the focus to emacs ***
 ;;; --------------------------------------------------------
 
-(defmacro d-restore-window-focus (&rest body)
+(defmacro d-restore-window-focus (sleep-time &rest body)
   "An ugly hack to get back the focus to emacs under gnome
 after starting some application using a window.
 
@@ -160,7 +161,7 @@ visible :)"
 
          ;; sleep a moment and try to get the focus back
          ;; !!! Note that the window is found by its name, not the name of the command!
-         (sleep-for 0.1)
+         (sleep-for ,sleep-time)
          (shell-command "wmctrl -a 'emacs'"))
 
     ;; `wmctrl' is not installed -

@@ -179,30 +179,6 @@
 ;;| (blender:get-blender-profile-path)
 
 ;;; ========================================================
-;;; Get the currently active provile argument
-;;; --------------------------------------------------------
-
-(defun blender:get-blender-profile-argument-list ()
-  "Returns the currently active blender profile.
-
-The result is returned as a list which can be inserted into the
-blender server startup argument list.
-
-When the path of the currently active profile is \"\" this
-results in an empty list returned which makes blender to open the
-default blender cube scene."
-  (let ((profile (blender:get-blender-profile-path)))
-    (if (string-equal profile "")
-        nil
-      (list (expand-file-name profile)))))
-
-;;| (blender:get-blender-profile-argument-list)
-;;| (blender:set-blender-profile "3x3+1 Perspective and Button Window")
-;;| (blender:get-blender-profile-argument-list)
-;;| (blender:set-blender-profile "Default")
-;;| (blender:get-blender-profile-argument-list)
-
-;;; ========================================================
 ;;; Functions
 ;;; --------------------------------------------------------
 

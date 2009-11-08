@@ -470,15 +470,25 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
   (interactive)
   (let ((bcp-debug-level blender-debug-level)
         (geometry        (blender:get-blender-geometry))
-        (port-number     (get-next-blender-port-number)))
+        (port-number     (get-next-blender-port-number))
+        (blender-profile (blender:get-blender-profile-path)))
 
     (let ((blender-command `(blender
                              ,@(blender:format-debug-option        bcp-debug-level)
                              ,@(blender:format-geometry-option     geometry)
                              ,@(blender:format-command-port-option port-number)
-                             ,@(blender:get-blender-profile-argument-list)
                              )))
-      
+
+      ;; when a profile has been specified...
+      (when (and blender-profile (not (equal blender-profile "")))
+
+        ;; assure its existence
+        (unless (file-exists-p blender-profile)
+          (error (format "Profile does not exist: %s" blender-profile)))
+
+        ;; and append it to the command
+        (setq blender-command (append blender-command (list (expand-file-name blender-profile)))))
+
       ;; DEBUG
       ;; when the debug key-argument is set
       ;; only return the blender server startup command list
@@ -501,7 +511,10 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
           
           (bpm:message "Started the Blender Server..."))))))
 
+;;; (start-blender-server)
+;;; 
 ;;; Append a blender profile to the argument list:
+;;; 
 ;;; (blender:set-blender-profile "3x3+1 Perspective and Button Window")
 ;;; (start-blender-server :debug t)
 ;;; (blender:set-blender-profile "3x3+0 Perspective")
