@@ -111,16 +111,29 @@ the amount of debug messages printed by blash."
 which inits the Blender python server with some the module `emacs'
 containing python functions `python-mode' is built on.
 
-`emacs.py' is a modified version of the file with the same name
-supplied with the `python-mode' source file `python.el'.
-And should be compared to the original file from time to time
-for the case it is updated.
+The directory is supposed to contain a subdirectory for every
+used python version.  In each of these subdirs a version of
+`emacs.py' for the relative python version has to be located.
+
+Example:
+
+If `blender-python-init-file-dir' is `python' the directory should
+contain the following files:
+
+  python/2.6/emacs.py
+  python/2.5/emacs.py
+  python/3.1/emacs.py
+
+The `emacs.py' files are a modified versions of the file with the
+same name supplied with the `python-mode' source file
+`python.el'.  And should be compared to the original file from
+time to time for the case the latter has been updated.
 
 Note:
 `blender-python-init-file-dir' relies on `blender-python-mode-installation-dir'!"
   :type  'string
   :group 'blender)
-(setq blender-python-init-file-dir (expand-file-name blender-python-mode-installation-dir))
+(setq blender-python-init-file-dir (expand-file-name (concat blender-python-mode-installation-dir "/python")))
   
 (defcustom blender:blash-buffer-height .25 ;; .15
   "Height of the blash window relative to the original window it is
@@ -150,6 +163,18 @@ The variable is set to the process name by the funcion `start-blender-server'.")
 The port number is constrained by the `blender-server-port-range'
 and calculated and set by the function
 `get-next-blender-port-number'.")
+
+;; =========================================================
+;; Utilities
+;; ---------------------------------------------------------
+
+(defun blender:get-blender-python-init-file-dir ()
+  "Get the versioned directory where to look for the `emacs.py' initialisation file.
+The directory depends on the python version specified for the
+current blender variant."
+  (let ((python-dir  blender-python-init-file-dir)
+        (python-vers (blender:get-blender-variant-python-version)))
+    (concat python-dir "/" python-vers)))
 
 ;; =========================================================
 ;; Initialization code
@@ -218,30 +243,32 @@ and calculated and set by the function
 ;; 
 ;; -----------------------------------------------
 
-(defcustom blender-python-init-cmd nil
-  "Command used to load the blendon-mode version of the
+(defun get-blender-python-init-cmd nil
+  "Assembles and returns the command used to load the blender-mode version of the
 python-mode initialization file `emacs.py'.
 
 Note:
-`blender-python-init-cmd' relies on `blender-python-init-file-dir'
-which relies itself on `blender-python-mode-installation-dir'!"
-  :type  'string
-  :group 'blender)
-(setq blender-python-init-cmd
-      (let ((dir blender-python-init-file-dir))
-        (concat
-         ;; ensure that `blender-python-mode's `emacs.py' is the first one found by python
-         "import sys\n"
-         "if not sys.path[0] == '" dir "':\n"
-         "    sys.path = ['" dir "'] + [d for d in sys.path if d != '" dir "']\n"
-         ;; import `blender-python-mode's `emacs.py'
-         "import emacs\n"
-         ;; Use the blender client's main dictionary 
-         "emacs.set_main_dict(globals())\n"
-         ;; print an `ok' message :)
-         "print \"# Blender client initialized.\"\n"
-         ;; fin.
-         )))
+
+`get-blender-python-init-cmd' relies on
+`blender-python-init-file-dir' which relies itself on
+`blender-python-mode-installation-dir' and on the python version
+the current blender variant has been specified to work with."
+  (let ((dir (blender:get-blender-python-init-file-dir)))
+    (concat
+     ;; ensure that `blender-python-mode's `emacs.py' is the first one found by python
+     "import sys\n"
+     "if not sys.path[0] == '" dir "':\n"
+     "    sys.path = ['" dir "'] + [d for d in sys.path if d != '" dir "']\n"
+     ;; import `blender-python-mode's `emacs.py'
+     "import emacs\n"
+     ;; Use the blender client's main dictionary 
+     "emacs.set_main_dict(globals())\n"
+     ;; print an `ok' message :)
+     "print(\"# Blender client initialized.\")\n"
+     ;; fin.
+     )))
+
+;; (get-blender-python-init-cmd)
 
 ;; =========================================================
 ;; A function for inserting dynamically generated menus
@@ -440,6 +467,8 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
   (define-key python-mode-map "\C-c\C-e" 'blender-execute-blender-region)
   (define-key python-mode-map [M-return] 'blender-execute-blender-region)
   (define-key python-mode-map [C-return] 'blender-execute-current-line)
+  (define-key python-mode-map "\C-c\C-n" 'blender:restart-blender-and-reevaluate-first-blender-region)
+  (define-key python-mode-map [f8]       'blender:restart-blender-and-reevaluate-first-blender-region)
   ;; tool bar
   ;;| (make-local-variable 'tool-bar-map)
   ;;| (blender-init-toolbar tool-bar-map)
@@ -539,6 +568,12 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
 ;;; 
 ;;; (progn (blender:set-blender-variant "Blender Geometry Option")  (start-blender-server))
 ;;; (stop-blender-server)
+;;; 
+;;; (progn (blender:set-blender-variant "Blender 2.5")  (start-blender-server))
+;;; (stop-blender-server)
+;;; 
+;;; (progn (blender:set-blender-variant "Blender 2.5")  (start-blender-server :debug t))
+;;; (stop-blender-server)
 
 ;; ---------------------------------------------------------
 
@@ -569,6 +604,10 @@ are returned."
       (values process-name process-buffer))))
 
 ;; (blender "--debug" "bcp:2" "--geometry" "500x400+0+500" "--bcp" "5678")
+;; 
+;; (blender "--debug-command-port" "2" "-p" "+0" "+0" "1015" "740" "--command-port" "6771" "/home/dietrich/blender/blender-profiles/blender-profile.1x1+1.perspective.button-window010.blend")
+;; 
+;; (blender "--debug-command-port" "2" "-p" "+0" "+0" "1015" "740" "--command-port" "6771" "/home/dietrich/blender/blender-profiles/blender-profile.1x1+1.perspective.button-window010.blend")
 
 ;;; -------------------------------------------------------- 
 
@@ -925,7 +964,7 @@ buffer for a list of commands.)"
                      ;; or reconnecting to the Blender server.
                      ;; 
                      (let* ((dir blender-python-init-file-dir)
-                            (cmd blender-python-init-cmd))
+                            (cmd (get-blender-python-init-cmd)))
                        (list "--init" cmd)))))
           (bpm:message "Starting Blash - connecting to Blender server at host %S, port %i\n" ip-address port)
           ;;| (bpm:message "[DEBUG blender-python-mode] Starting blash with command: %S" cmd)
@@ -1558,6 +1597,19 @@ This function is a copy of `slime-frame-windows'."
 
 ;; (blender:kill-blender-buffers)
 
+;;; ========================================================
+;;; 
+;;; --------------------------------------------------------
+
+(defun blender:restart-blender-and-reevaluate-first-blender-region ()
+  "Restart blender and evaluate the first region in the file limited by `region-begin' and `region-end'."
+  (interactive)
+  (blender:restart)
+  (clear-blash-buffer)
+  (blash:restart-blash-client)
+  (blender-execute-first-blender-region)
+  )
+  
 ;; =========================================================
 
 (provide 'blender-python-mode)
