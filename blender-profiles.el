@@ -96,7 +96,7 @@
 ;;; Variables
 ;;; --------------------------------------------------------
 
-(defvar blender:blender-profile nil
+(defvar blender-profile nil
   ;; dynamically set from `blender:blender-profile-default' whenever the file is loaded
   "*The blender profile used when starting up.")
 
@@ -106,7 +106,7 @@
 
 (defun blender:set-blender-profile (profile-name)
   "Set the blender profile to use when starting the blender server."
-  (setq blender:blender-profile profile-name))
+  (setq blender-profile profile-name))
 
 ;;; ========================================================
 ;;; Setting the default profile
@@ -122,7 +122,7 @@
 
 (defun blender:get-blender-profile ()
   "Get the blender profile to use when starting the blender server."
-  blender:blender-profile)
+  blender-profile)
   
 ;;| (blender:get-blender-profile)
 ;;| (blender:set-blender-profile "3x3+1 Perspective and Button Window")
@@ -140,7 +140,7 @@
 
 (defun blender:get-blender-profile-settings ()
   "Get the settings for the currently active blender profile."
-  (let ((profile-name blender:blender-profile))
+  (let ((profile-name blender-profile))
         (loop for profile in blender:blender-profiles
               when (string-equal profile-name (first profile)) return profile)))
 
