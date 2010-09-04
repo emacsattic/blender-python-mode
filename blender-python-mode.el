@@ -467,6 +467,7 @@ Runs `blender-python-mode-hook' after `python-mode-hook'."
   (define-key python-mode-map "\C-x\C-e" 'blender-execute-blender-region)
   (define-key python-mode-map "\C-c\C-e" 'blender-execute-blender-region)
   (define-key python-mode-map [M-return] 'blender-execute-blender-region)
+  (define-key python-mode-map "\C-c\C-c" 'blender-send-buffer)
   (define-key python-mode-map [C-return] 'blender-execute-current-line)
   (define-key python-mode-map "\C-c\C-n" 'blender:restart-blender-and-reevaluate-first-blender-region)
   (define-key python-mode-map [f8]       'blender:restart-blender-and-reevaluate-first-blender-region)
@@ -1178,6 +1179,27 @@ which also recenters the python buffer."
       (find-file filename))
     ;; execute file in blender
     (blender-execute-file filename)))
+
+;; ---------------------------------------------------------
+
+(defun blender-send-buffer ()
+  "Send the current buffer to the inferior Python process.
+
+When the buffer is bound to a file and the current state of the
+buffer has been saved, the corresponding file itself is loaded
+using `imp.load_source'; when the buffer is not bound to a file
+or has been modified since it has been saved last, the buffer
+content is sent."
+  (interactive)
+  (let ((filename (buffer-file-name (current-buffer))))
+    (if (and
+         filename                   ;; buffer is bound to some file
+         (not (buffer-modified-p))) ;; buffer has not been modified since last save
+        ;; use `blender-execute-file'
+        (blender-execute-file filename)
+      ;; buffer is not bound to file or modified
+      ;; use `python-send-buffer'
+      (python-send-buffer))))
 
 ;; ---------------------------------------------------------
 
